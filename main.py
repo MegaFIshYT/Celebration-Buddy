@@ -347,10 +347,7 @@ async def get_hangman_word():
                 "Letters A–Z only (no hyphens, apostrophes, or spaces). "
                 "Reply with ONLY the word."
             )
-            resp = await genai.aio.responses.generate.async_generate(
-                model="gemini-1.5-flash",
-                contents=prompt
-            )
+            resp = await gemini_model.generate_content_async(prompt)
             ai_word = resp.text.strip().upper()
             if ai_word.isalpha() and len(ai_word) == target_len:
                 return ai_word
@@ -379,10 +376,7 @@ async def get_word_of_the_day():
     try:
         logger.info("Attempting to get Wordle answer from AI...")
         prompt = "choose a single, common, 5-letter English word suitable for a word game. Respond with only the single word and nothing else. word list: " + "\n".join(VALID_GUESSES)
-        response = await genai.aio.responses.generate.async_generate(  # safer for some versions
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
+        response = await gemini_model.generate_content_async(prompt)
         ai_word = response.text.strip().upper()
         if len(ai_word) == 5 and ai_word.isalpha() and ai_word in VALID_GUESSES:
             logger.info(f"AI chose a valid word of the day: {ai_word}")
@@ -415,10 +409,7 @@ async def is_real_word_with_ai(word):
     try:
         logger.info(f"Performing AI validation for word: {word}")
         prompt = f"Is '{word}' a real, common, 5-letter English word? Do not include proper nouns. Answer with only the single word 'yes' or 'no'."
-        response = await genai.aio.responses.generate.async_generate(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
+        response = await gemini_model.generate_content_async(prompt)
         is_valid = response.text.strip().lower() == 'yes'
         if is_valid:
             logger.info(f"AI validation successful for '{word}'. Adding to dictionary.")
@@ -438,11 +429,7 @@ async def generate_birthday_message(user_id):
     try:
         logger.info(f"Generating Gemini birthday message for {user_name}...")
         prompt = (f"Generate fun, and enthusiastic birthday message for a colleague named {user_name}. The message should be posted in a company Slack channel. It must include a lot emojis. It must end by encouraging everyone to wish them a happy birthday at the end of the message. Make it exciting and celebratory. Do not use hashtags. Mention the user's name at least once.")
-        # async call
-        response = await genai.aio.responses.generate.async_generate(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
+        response = await gemini_model.generate_content_async(prompt)
         logger.info("Gemini message generated successfully.")
         return response.text
     except Exception as e: logger.critical(f"CRITICAL ERROR during Gemini generation: {e}"); return fallback_message
@@ -454,10 +441,7 @@ async def generate_anniversary_message(user_id, years):
     try:
         logger.info(f"Generating Gemini anniversary message for {user_name}...")
         prompt = (f"Generate a cheerful message for a colleague named {user_name} celebrating their *{years}-year* work anniversary. Make sure to prominently mention they are celebrating *{years} years*. Post it in a company Slack channel. It must include emojis. End by encouraging everyone to congratulate them. Make it sound appreciative. Do not use hashtags.")
-        response = await genai.aio.responses.generate.async_generate(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
+        response = await gemini_model.generate_content_async(prompt)
         logger.info("Gemini message generated successfully.")
         return response.text
     except Exception as e: logger.critical(f"CRITICAL ERROR during Gemini generation: {e}"); return fallback_message
@@ -570,31 +554,44 @@ async def delete_data_command(ack, body, client):
     try: view = build_delete_type_modal(); await client.views_open(trigger_id=body["trigger_id"], view=view)
     except Exception as e: logger.error(f"Error opening delete data modal: {e}")
 
+# --- CORRECTED COMMAND ---
 @slack_app.command("/list-birthdays")
 async def list_birthdays_command(ack, body, client):
     await ack(); user_id = body['user_id']
-    if not await is_user_admin(client, user_id): await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Sorry, You don't have the right permmision to do this action."); return
+    if not await is_user_admin(client, user_id):
+        # Send a DM instead of an ephemeral message
+        await client.chat_postMessage(channel=user_id, text="Sorry, You don't have the right permission to do this action."); return
     all_birthdays = db_read_all("SELECT user_id, birthday_date FROM birthdays")
-    if not all_birthdays: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="No birthdays saved."); return
+    if not all_birthdays:
+        await client.chat_postMessage(channel=user_id, text="No birthdays saved."); return
     today_tuple = (date.today().month, date.today().day)
     sorted_birthdays = sorted(all_birthdays, key=lambda b: (int(b[1][:2]), int(b[1][3:])) if (int(b[1][:2]), int(b[1][3:])) >= today_tuple else (int(b[1][:2]) + 12, int(b[1][3:])))
-    message = ["*Upcoming Birthdays:*"]; [message.append(f"• <@{user_id}> - {datetime.strptime(bday_str, '%m-%d').strftime('%B %d')}") for user_id, bday_str in sorted_birthdays]
-    await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="\n".join(message))
+    message = ["*Upcoming Birthdays:*"]
+    for bday_user_id, bday_str in sorted_birthdays:
+        message.append(f"• <@{bday_user_id}> - {datetime.strptime(bday_str, '%m-%d').strftime('%B %d')}")
+    # Send the list as a direct message to the user
+    await client.chat_postMessage(channel=user_id, text="\n".join(message))
 
+# --- CORRECTED COMMAND ---
 @slack_app.command("/list-anniversaries")
 async def list_anniversaries_command(ack, body, client):
     await ack(); user_id = body['user_id']
-    if not await is_user_admin(client, user_id): await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Sorry, You don't have the right permmision to do this action."); return
+    if not await is_user_admin(client, user_id):
+        await client.chat_postMessage(channel=user_id, text="Sorry, You don't have the right permission to do this action."); return
     all_anniversaries = db_read_all("SELECT user_id, anniversary_date FROM anniversaries")
-    if not all_anniversaries: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="No anniversaries saved."); return
+    if not all_anniversaries:
+        await client.chat_postMessage(channel=user_id, text="No anniversaries saved."); return
     today = date.today(); today_tuple = (today.month, today.day)
     sorted_anniversaries = sorted(all_anniversaries, key=lambda a: (int(a[1][5:7]), int(a[1][8:10])) if (int(a[1][5:7]), int(a[1][8:10])) >= today_tuple else (int(a[1][5:7]) + 12, int(a[1][8:10])))
     message = ["*Upcoming Anniversaries:*"]
-    for user_id, anniv_str in sorted_anniversaries:
+    for anniv_user_id, anniv_str in sorted_anniversaries:
         anniv_obj = datetime.strptime(anniv_str, "%Y-%m-%d").date(); years = relativedelta(today, anniv_obj).years
-        if years >= 1: message.append(f"• <@{user_id}> - {anniv_obj.strftime('%B %d %Y')} ({years}-year anniversary)")
-    if len(message) == 1: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="No upcoming anniversaries for anyone who has been here at least a year.")
-    else: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="\n".join(message))
+        if years >= 1: message.append(f"• <@{anniv_user_id}> - {anniv_obj.strftime('%B %d %Y')} ({years}-year anniversary)")
+    if len(message) == 1:
+        await client.chat_postMessage(channel=user_id, text="No upcoming anniversaries for anyone who has been here at least a year.")
+    else:
+        # Send the list as a direct message to the user
+        await client.chat_postMessage(channel=user_id, text="\n".join(message))
 
 @slack_app.command("/test-birthday-ai")
 async def test_birthday_ai_command(ack, body, client):
@@ -746,31 +743,49 @@ async def handle_test_game_selection(ack, body, client):
         logger.error(f"Failed to start test game '{game_name}' for {user_id}: {e}")
         await client.chat_postEphemeral(user=user_id, channel=user_id, text="Sorry, an error occurred while trying to start that game.")
 
+# --- CORRECTED EVENT HANDLER ---
 @slack_app.event("team_join")
 async def handle_team_join(event, client):
     new_user_id = event["user"]["id"]; logger.info(f"New user joined: {new_user_id}")
     try:
+        # Ask the new user for their birthday
         format_str, example_str = await get_user_date_format(client, new_user_id)
         await client.chat_postMessage(channel=new_user_id, text=f"<@{new_user_id}>, Welcome to the team! I'm the Birthday Bot. To make sure we can celebrate you, please reply to me with your birthday in `{format_str}` format ({example_str}).")
-        all_users = await client.users_list(); admin_reminder_message = f":wave: A new user named <@{new_user_id}>, has joined! Please remember to set their work anniversary using the `/set-anniversary` command."
-        for user in all_users['members']:
-            if await is_user_admin(client, user['id']) and not user['is_bot']:
-                try: await client.chat_postMessage(channel=user['id'], text=admin_reminder_message)
-                except Exception as e: logger.error(f"Failed to send admin reminder to {user['id']}: {e}")
-    except Exception as e: logger.error(f"Error in team_join event for {new_user_id}: {e}")
 
+        # Notify admins more efficiently
+        admin_reminder_message = f":wave: A new user, <@{new_user_id}>, has joined! Please remember to set their work anniversary using the `/set-anniversary` command."
+        all_users_response = await client.users_list()
+        for user in all_users_response['members']:
+            # Check admin/owner status directly from the users.list response
+            if not user['is_bot'] and (user.get('is_admin') or user.get('is_owner')):
+                try:
+                    await client.chat_postMessage(channel=user['id'], text=admin_reminder_message)
+                except Exception as e:
+                    logger.error(f"Failed to send admin reminder to {user['id']}: {e}")
+    except Exception as e:
+        logger.error(f"Error in team_join event for {new_user_id}: {e}")
+
+# --- CORRECTED EVENT HANDLER ---
 @slack_app.event("user_change")
 async def handle_user_change(event, client):
     user_profile = event["user"]
     if user_profile.get("deleted", False):
         user_id = user_profile["id"]; logger.info(f"User {user_id} has been deactivated. Removing their data.")
-        db_write("DELETE FROM birthdays WHERE user_id = ?", (user_id,)); db_write("DELETE FROM anniversaries WHERE user_id = ?", (user_id,))
-        admin_reminder_message = f"User, <@{user_id}>, has been deleted and their data has been removed."
-        all_users = await client.users_list()
-        for user in all_users['members']:
-            if await is_user_admin(client, user['id']) and not user['is_bot']:
-                try: await client.chat_postMessage(channel=user['id'], text=admin_reminder_message)
-                except Exception as e: logger.error(f"Failed to send admin reminder to {user['id']}: {e}")
+        db_write("DELETE FROM birthdays WHERE user_id = ?", (user_id,))
+        db_write("DELETE FROM anniversaries WHERE user_id = ?", (user_id,))
+
+        # Notify admins more efficiently
+        admin_reminder_message = f"User <@{user_id}> has been deactivated and their data has been removed from the Celebration Bot."
+        try:
+            all_users_response = await client.users_list()
+            for user in all_users_response['members']:
+                if not user['is_bot'] and (user.get('is_admin') or user.get('is_owner')):
+                    try:
+                        await client.chat_postMessage(channel=user['id'], text=admin_reminder_message)
+                    except Exception as e:
+                        logger.error(f"Failed to send admin reminder to {user['id']}: {e}")
+        except Exception as e:
+            logger.error(f"Error notifying admins during user_change for {user_id}: {e}")
 
 @slack_app.message()
 async def handle_dm(message, say, client):
