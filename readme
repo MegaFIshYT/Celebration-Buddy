@@ -1,0 +1,42 @@
+To run this app:
+1. Make sure you have a .env file with SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET, and GEMINI_API_KEY.
+2. In your Slack App configuration, change from "Socket Mode" to "Event Subscriptions".
+3. Set the Request URL to your publicly accessible server + "/slack/events" (e.g., using ngrok).
+4. Subscribe to the bot events: team_join, user_change, message.im.
+5. Add your slash commands under "Slash Commands" pointing to the same Request URL.
+6. Enable "Interactivity & Shortcuts" and use the same Request URL.
+7. Run with: uvicorn main:api_app --host 0.0.0.0 --port 8000
+
+Event Subscriptions:
+
+    Subscribe to bot events:
+
+        message.im
+        team_join
+        user_change
+
+OAuth & Permissions:
+    Scopes:
+        channels:read
+        chat:write
+        commands
+        im:history
+        im:write
+        users:read
+
+Slash Commands:
+    /set-birthday
+    /birthday-settings
+    /reset-birthday-bot
+    /set-birthday
+    /test-birthday-ai
+    /set-anniversary
+    /list-birthdays
+    /list-anniversaries
+    /setup-anniversary
+    /test-anniversary-ai
+    /delete
+    /help
+    /set-game
+    /test-game
+

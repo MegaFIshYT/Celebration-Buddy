@@ -1,0 +1,32 @@
+# FastAPI web server framework
+fastapi
+
+# ASGI server for running FastAPI
+uvicorn
+
+# The Slack Bolt framework for Python
+slack-bolt
+
+# For handling scheduled tasks like daily birthday checks
+APScheduler
+
+# For parsing dates and calculating anniversaries
+python-dateutil
+
+# For loading environment variables from the .env file
+python-dotenv
+
+# For interacting with the Google Gemini API
+google-generativeai
+
+# For making HTTP requests to the Trivia API
+requests
+
+
+pyngrok
+
+
+slack_sdk
+
+
+aiohttp
