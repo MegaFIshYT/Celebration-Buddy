@@ -423,28 +423,52 @@ async def is_real_word_with_ai(word):
         return False
 
 async def generate_birthday_message(user_id):
-    user_info = await get_user_info(slack_app.client, user_id); user_name = user_info['user']['profile'].get('real_name', 'our teammate') if user_info else 'our teammate'
-    fallback_message = f"Happy Birthday <@{user_id}>! :tada:"
-    if not gemini_model: logger.warning("Gemini model failed. Using fallback message."); return fallback_message
+    user_info = await get_user_info(slack_app.client, user_id)
+    user_name = user_info['user']['profile'].get('real_name', 'our teammate') if user_info else 'our teammate'
+    # FIX APPLIED: Correct fallback message syntax
+    fallback_message = f"<!channel> Happy Birthday <@{user_id}>! :tada:"
+    if not gemini_model:
+        logger.warning("Gemini model failed. Using fallback message.")
+        return fallback_message
     try:
         logger.info(f"Generating Gemini birthday message for {user_name}...")
-        prompt = (f"Generate fun, and enthusiastic birthday message for a colleague named {user_name}. The message should be posted in a company Slack channel. It must include a lot emojis. It must end by encouraging everyone to wish them a happy birthday at the end of the message. Make it exciting and celebratory. Do not use hashtags. Mention the user's name at least once.")
+        # FIX APPLIED: Corrected the prompt to use <!channel>
+        prompt = (f"Generate a very short, fun, and enthusiastic birthday message for a colleague named {user_name}. "
+                  f"The message MUST start with `<!channel>`. "
+                  f"When you mention the user, you must do it like this: `<@{user_id}>`. "
+                  f"The message should be posted in a company Slack channel. "
+                  f"It must include emojis. It must end by encouraging everyone to wish them a happy birthday. "
+                  f"Make it exciting and celebratory. Do not use hashtags.")
         response = await gemini_model.generate_content_async(prompt)
         logger.info("Gemini message generated successfully.")
         return response.text
-    except Exception as e: logger.critical(f"CRITICAL ERROR during Gemini generation: {e}"); return fallback_message
+    except Exception as e:
+        logger.critical(f"CRITICAL ERROR during Gemini generation: {e}")
+        return fallback_message
 
 async def generate_anniversary_message(user_id, years):
-    user_info = await get_user_info(slack_app.client, user_id); user_name = user_info['user']['profile'].get('real_name', 'our teammate') if user_info else 'our teammate'
-    fallback_message = f"Happy {years}-year anniversary, <@{user_id}>! :tada:"
-    if not gemini_model: logger.warning("Gemini model failed. Using fallback message."); return fallback_message
+    user_info = await get_user_info(slack_app.client, user_id)
+    user_name = user_info['user']['profile'].get('real_name', 'our teammate') if user_info else 'our teammate'
+    # FIX APPLIED: Correct fallback message syntax
+    fallback_message = f"<!channel> Happy {years}-year anniversary, <@{user_id}>! :tada:"
+    if not gemini_model:
+        logger.warning("Gemini model failed. Using fallback message.")
+        return fallback_message
     try:
         logger.info(f"Generating Gemini anniversary message for {user_name}...")
-        prompt = (f"Generate a cheerful message for a colleague named {user_name} celebrating their *{years}-year* work anniversary. Make sure to prominently mention they are celebrating *{years} years*. Post it in a company Slack channel. It must include emojis. End by encouraging everyone to congratulate them. Make it sound appreciative. Do not use hashtags.")
+        # FIX APPLIED: Corrected the prompt to use <!channel>
+        prompt = (f"Generate a very short, cheerful message for a colleague named {user_name} celebrating their *{years}-year* work anniversary. "
+                  f"The message MUST start with `<!channel>`. "
+                  f"When you mention the user, you must do it like this: `<@{user_id}>`. "
+                  f"Make sure to prominently mention they are celebrating *{years} years*. "
+                  f"Post it in a company Slack channel. It should include a few emojis. "
+                  f"End by encouraging everyone to congratulate them. Make it sound appreciative. Do not use hashtags.")
         response = await gemini_model.generate_content_async(prompt)
         logger.info("Gemini message generated successfully.")
         return response.text
-    except Exception as e: logger.critical(f"CRITICAL ERROR during Gemini generation: {e}"); return fallback_message
+    except Exception as e:
+        logger.critical(f"CRITICAL ERROR during Gemini generation: {e}")
+        return fallback_message
 
 def build_settings_modal(callback_id, title, current_settings=None):
     channel = current_settings[1] if current_settings else None; time = current_settings[2] if current_settings else "09:00"
@@ -497,7 +521,7 @@ async def help_command(ack, body, client):
         "• `/test-anniversary-ai`: Send a test anniversary message.",
         "• `/test-game`: Starts a test game for yourself.",
         "• `/delete`: Delete a user's data.",
-        "• `/reset-birthday-bot`: Reset all bot data and settings."
+        "• `/reset-celebration-bot`: Reset all bot data and settings."
     ])
     blocks = [{"type": "header", "text": {"type": "plain_text", "text": "Celebration Bot Help :wave:"}}, {"type": "section", "text": {"type": "mrkdwn", "text": "Here are the commands you can use:\n\n*User Commands:*\n• `/help`: Shows this help message."}}]
     if await is_user_admin(client, user_id): blocks.append({"type": "divider"}); blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"*Admin Commands:*\n{admin_command_text}"}})
@@ -526,7 +550,7 @@ async def set_game_command(ack, body, client):
         view = build_game_settings_modal(current_status); await client.views_open(trigger_id=body["trigger_id"], view=view)
     except Exception as e: logger.error(f"Error in /set-game: {e}")
 
-@slack_app.command("/reset-birthday-bot")
+@slack_app.command("/reset-celebration-bot")
 async def reset_command(ack, body, client):
     await ack()
     if not await is_user_admin(client, body['user_id']): await client.chat_postEphemeral(user=body['user_id'], channel=body['channel_id'], text="Sorry, You don't have the right permmision to do this action."); return
@@ -686,15 +710,30 @@ async def handle_reset_confirmation(ack, body, client):
 async def handle_admin_set_birthday_submission(ack, body, client, view):
     admin_user_id = body["user"]["id"]; values = view["state"]["values"]
     try:
-        target_user_id, selected_format, date_str = values["user_select_block"]["user_select_action"]["selected_user"], values["format_select_block"]["format_select_action"]["selected_option"]["value"], values["date_input_block"]["date_input_action"]["value"]
-        format_string = "%m-%d" if selected_format == "MM-DD" else "%d-%m"
-        parsed_date = datetime.strptime(date_str, format_string); db_date_str = parsed_date.strftime("%m-%d")
+        target_user_id = values["user_select_block"]["user_select_action"]["selected_user"]
+        selected_format = values["format_select_block"]["format_select_action"]["selected_option"]["value"]
+        date_str = values["date_input_block"]["date_input_action"]["value"]
+        
+        # FIX APPLIED HERE
+        format_string_with_year = "%m-%d-%Y" if selected_format == "MM-DD" else "%d-%m-%Y"
+        date_str_with_year = f"{date_str}-2000" # Use a leap year
+        
+        parsed_date = datetime.strptime(date_str_with_year, format_string_with_year)
+        db_date_str = parsed_date.strftime("%m-%d")
+        
         db_write("INSERT OR REPLACE INTO birthdays (user_id, birthday_date) VALUES (?, ?)", (target_user_id, db_date_str))
-        await ack(); await client.chat_postMessage(channel=admin_user_id, text=f"Success! Birthday for <@{target_user_id}> set to {parsed_date.strftime('%B %d')}.")
-        try: await client.chat_postMessage(channel=target_user_id, text=f"FYI: An admin set your birthday to {parsed_date.strftime('%B %d')}.")
-        except Exception: pass
-    except ValueError: await ack(response_action="errors", errors={"date_input_block": "Invalid date for the selected format."})
-    except Exception as e: logger.error(f"Error in admin birthday submission: {e}"); await ack(); await client.chat_postMessage(channel=admin_user_id, text=f"An unexpected error: {e}")
+        await ack()
+        await client.chat_postMessage(channel=admin_user_id, text=f"Success! Birthday for <@{target_user_id}> set to {parsed_date.strftime('%B %d')}.")
+        try:
+            await client.chat_postMessage(channel=target_user_id, text=f"FYI: An admin set your birthday to {parsed_date.strftime('%B %d')}.")
+        except Exception:
+            pass
+    except ValueError:
+        await ack(response_action="errors", errors={"date_input_block": "Invalid date for the selected format."})
+    except Exception as e:
+        logger.error(f"Error in admin birthday submission: {e}")
+        await ack()
+        await client.chat_postMessage(channel=admin_user_id, text=f"An unexpected error: {e}")
 
 @slack_app.view("admin_set_anniversary_submitted")
 async def handle_admin_set_anniversary_submission(ack, body, client, view):
@@ -798,6 +837,7 @@ async def handle_dm(message, say, client):
         handler_function = GAME_REGISTRY[game_key]['handler']
         await handler_function(text.upper(), user_id, game_session, say)
         return
+        
     birthday_match = re.fullmatch(r"(\d{2}-\d{2})", text)
     if birthday_match:
         date_str = birthday_match.group(1)
@@ -806,9 +846,14 @@ async def handle_dm(message, say, client):
             return
         try:
             date_format, _ = await get_user_date_format(client, user_id)
-            format_string = "%d-%m" if date_format == 'DD-MM' else "%m-%d"
-            parsed_date = datetime.strptime(date_str, format_string)
-            db_date_str = parsed_date.strftime("%m-%d")
+            
+            # FIX APPLIED HERE
+            format_string_with_year = "%d-%m-%Y" if date_format == 'DD-MM' else "%m-%d-%Y"
+            date_str_with_year = f"{date_str}-2000" # Use a leap year to be safe
+            
+            parsed_date = datetime.strptime(date_str_with_year, format_string_with_year)
+            db_date_str = parsed_date.strftime("%m-%d") # Store without the year
+            
             db_write("INSERT INTO birthdays (user_id, birthday_date) VALUES (?, ?)", (user_id, db_date_str))
             await say(f"Got it! I'll celebrate your birthday on {parsed_date.strftime('%B %d')}!")
         except ValueError:
