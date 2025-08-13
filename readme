@@ -3,9 +3,7 @@ To run this app:
 2. In your Slack App configuration, change from "Socket Mode" to "Event Subscriptions".
 3. Set the Request URL to your publicly accessible server + "/slack/events" (e.g., using ngrok).
 4. Subscribe to the bot events: team_join, user_change, message.im.
-5. Add your slash commands under "Slash Commands" pointing to the same Request URL.
-6. Enable "Interactivity & Shortcuts" and use the same Request URL.
-7. Run with: uvicorn main:api_app --host 0.0.0.0 --port 8000
+7. Run with: python main.py
 
 Event Subscriptions:
 
