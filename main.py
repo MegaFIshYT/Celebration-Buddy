@@ -436,6 +436,7 @@ async def generate_birthday_message(user_id):
         prompt = (f"Generate a very short, fun, and enthusiastic birthday message for a colleague named {user_name}. "
                   f"The message MUST start with `<!channel>`. "
                   f"When you mention the user, you must do it like this: `<@{user_id}>`. "
+                  f"Add a line break after the first sentence."
                   f"The message should be posted in a company Slack channel. "
                   f"It must include emojis. It must end by encouraging everyone to wish them a happy birthday. "
                   f"Make it exciting and celebratory. Do not use hashtags.")
@@ -461,6 +462,7 @@ async def generate_anniversary_message(user_id, years):
                   f"The message MUST start with `<!channel>`. "
                   f"When you mention the user, you must do it like this: `<@{user_id}>`. "
                   f"Make sure to prominently mention they are celebrating *{years} years*. "
+                  f"Add a line break after the first sentence."
                   f"Post it in a company Slack channel. It should include a few emojis. "
                   f"End by encouraging everyone to congratulate them. Make it sound appreciative. Do not use hashtags.")
         response = await gemini_model.generate_content_async(prompt)
