@@ -145,7 +145,7 @@ async def handle_wordle_guess(guess, user_id, game_session, say):
 
 async def start_number_guesser_game(user_id, client):
     target_number = random.randint(1, 100)
-    game_state = {'game_name': 'number_guesser', 'state': {'target': target_number, 'guesses': 0, 'limit': 7}}
+    game_state = {'game_name': 'number_guesser', 'state': {'target': target_number, 'guesses': 0, 'limit': 6}}
     active_games[user_id] = game_state
     logger.info(f"Starting Number Guesser game for {user_id}. Target is {target_number}.")
     initial_message = (f"Happy Birthday! :tada: For a bit of fun, let's play *Higher or Lower*!\n\n"
