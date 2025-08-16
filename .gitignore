@@ -202,3 +202,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 slack_bot.db
+slack_bot.db

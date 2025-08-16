@@ -145,7 +145,7 @@ async def handle_wordle_guess(guess, user_id, game_session, say):
 
 async def start_number_guesser_game(user_id, client):
     target_number = random.randint(1, 100)
-    game_state = {'game_name': 'number_guesser', 'state': {'target': target_number, 'guesses': 0, 'limit': 7}}
+    game_state = {'game_name': 'number_guesser', 'state': {'target': target_number, 'guesses': 0, 'limit': 6}}
     active_games[user_id] = game_state
     logger.info(f"Starting Number Guesser game for {user_id}. Target is {target_number}.")
     initial_message = (f"Happy Birthday! :tada: For a bit of fun, let's play *Higher or Lower*!\n\n"
@@ -408,7 +408,7 @@ async def is_real_word_with_ai(word):
         return False
     try:
         logger.info(f"Performing AI validation for word: {word}")
-        prompt = f"Is '{word}' a real, common, 5-letter English word? Do not include proper nouns. Answer with only the single word 'yes' or 'no'."
+        prompt = f"Is '{word}' a real, common, this is the most important please give a 5-letter English word? Do not include proper nouns. Answer with only the single word 'yes' or 'no'."
         response = await gemini_model.generate_content_async(prompt)
         is_valid = response.text.strip().lower() == 'yes'
         if is_valid:
@@ -484,7 +484,7 @@ def build_admin_set_birthday_modal(): return {"type": "modal", "callback_id": "a
 
 def build_admin_set_anniversary_modal(): return {"type": "modal", "callback_id": "admin_set_anniversary_submitted", "title": {"type": "plain_text", "text": "Admin: Set Anniversary"}, "submit": {"type": "plain_text", "text": "Save Anniversary"}, "close": {"type": "plain_text", "text": "Cancel"}, "blocks": [{"type": "input", "block_id": "user_select_block", "label": {"type": "plain_text", "text": "Select a user"}, "element": {"type": "users_select", "placeholder": {"type": "plain_text", "text": "Select a user..."}, "action_id": "user_select_action"}}, {"type": "input", "block_id": "date_input_block", "label": {"type": "plain_text", "text": "Select their work start date"}, "element": {"type": "datepicker", "placeholder": {"type": "plain_text", "text": "Select a date"}, "action_id": "date_input_action"}}]}
 
-def build_delete_type_modal(): return {"type": "modal", "callback_id": "delete_type_selected", "title": {"type": "plain_text", "text": "Delete Data"}, "submit": {"type": "plain_text", "text": "Next"}, "close": {"type": "plain_text", "text": "Cancel"}, "blocks": [{"type": "input", "block_id": "delete_type_block", "label": {"type": "plain_text", "text": "What do you want to delete?"}, "element": {"type": "radio_buttons", "action_id": "delete_type_action", "options": [{"text": {"type": "plain_text", "text": "A User's Birthday"}, "value": "birthday"}, {"text": {"type": "plain_text", "text": "A User's Anniversary"}, "value": "anniversary"}]}}]}
+def build_delete_type_modal(): return {"type": "modal", "callback_id": "delete_type_selected", "title": {"type": "plain_text", "text": "Delete User Data"}, "submit": {"type": "plain_text", "text": "Next"}, "close": {"type": "plain_text", "text": "Cancel"}, "blocks": [{"type": "input", "block_id": "delete_type_block", "label": {"type": "plain_text", "text": "What do you want to delete?"}, "element": {"type": "radio_buttons", "action_id": "delete_type_action", "options": [{"text": {"type": "plain_text", "text": "A User's Birthday"}, "value": "birthday"}, {"text": {"type": "plain_text", "text": "A User's Anniversary"}, "value": "anniversary"}]}}]}
 
 async def build_delete_user_modal(delete_type, client):
     title = f"Delete {delete_type.capitalize()}"; table_name = f"{delete_type}s"
@@ -506,6 +506,59 @@ def build_game_settings_modal(current_status):
 def build_test_game_modal():
     game_options = [{"text": {"type": "plain_text", "text": game_details["name"]},"value": game_key} for game_key, game_details in GAME_REGISTRY.items()]
     return {"type": "modal","callback_id": "test_game_selected","title": {"type": "plain_text","text": "Test a Game"},"submit": {"type": "plain_text","text": "Start Test"},"close": {"type": "plain_text","text": "Cancel"},"blocks": [{"type": "input","block_id": "game_select_block","label": {"type": "plain_text","text": "Which game would you like to test?"},"element": {"type": "static_select","placeholder": {"type": "plain_text","text": "Select a game"},"action_id": "game_select_action","options": game_options}}]}
+
+# --- NEW: Admin Home Tab View Builder ---
+def build_admin_home_view():
+    """Builds the rich Block Kit view for the admin control panel."""
+    return {
+        "type": "home",
+        "blocks": [
+            {"type": "header", "text": {"type": "plain_text", "text": ":robot_face: Admin Control Panel", "emoji": True}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": "Welcome, Admin! Use these controls to manage the Celebration Bot."}},
+            {"type": "divider"},
+            {"type": "header", "text": {"type": "plain_text", "text": "⚙️ Main Settings", "emoji": True}},
+            {"type": "actions", "elements": [
+                {"type": "button", "text": {"type": "plain_text", "text": "Birthday Settings", "emoji": True}, "style": "primary", "action_id": "admin_home_setup_birthdays"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Anniversary Settings", "emoji": True}, "style": "primary", "action_id": "admin_home_setup_anniversaries"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Game Settings", "emoji": True}, "style": "primary", "action_id": "admin_home_setup_games"}
+            ]},
+            {"type": "divider"},
+            {"type": "header", "text": {"type": "plain_text", "text": "👥 User Data Management", "emoji": True}},
+            {"type": "actions", "elements": [
+                {"type": "button", "text": {"type": "plain_text", "text": "Set a Birthday", "emoji": True}, "action_id": "admin_home_set_birthday"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Set an Anniversary", "emoji": True}, "action_id": "admin_home_set_anniversary"},
+            ]},
+            {"type": "divider"},
+            {"type": "header", "text": {"type": "plain_text", "text": "📊 View Data & Tests", "emoji": True}},
+            {"type": "actions", "elements": [
+                {"type": "button", "text": {"type": "plain_text", "text": "List Birthdays", "emoji": True}, "action_id": "admin_home_list_birthdays"},
+                {"type": "button", "text": {"type": "plain_text", "text": "List Anniversaries", "emoji": True}, "action_id": "admin_home_list_anniversaries"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Test a Game", "emoji": True}, "action_id": "admin_home_test_game"}
+            ]},
+            {"type": "actions", "elements": [
+                {"type": "button", "text": {"type": "plain_text", "text": "Test Birthday Message", "emoji": True}, "action_id": "admin_home_test_bday_ai"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Test Anniversary Message", "emoji": True}, "action_id": "admin_home_test_anniv_ai"}
+            ]},
+            {"type": "divider"},
+            {"type": "header", "text": {"type": "plain_text", "text": "🚨 Danger Zone", "emoji": True}},
+            {"type": "actions", "elements": [
+                {"type": "button", "text": {"type": "plain_text", "text": "Reset Entire Bot", "emoji": True}, "style": "danger", "action_id": "admin_home_reset_bot"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Delete User Data", "emoji": True}, "style": "danger", "action_id": "admin_home_delete_data"}
+            ]}
+        ]
+    }
+
+# --- NEW: Standard User Home Tab View Builder ---
+def build_user_home_view():
+    """Builds the simple home view for non-admin users."""
+    return {
+        "type": "home",
+        "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "Welcome to the Celebration Bot! :tada:\nI'll post messages for birthdays and work anniversaries. If I've asked for your birthday, please reply in a direct message."}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": "Type `/help` in any channel to see available commands."}}
+        ]
+    }
+
 
 # --- COMMAND HANDLERS, VIEW HANDLERS, EVENT HANDLERS, MESSAGE ROUTING ---
 @slack_app.command("/help")
@@ -619,32 +672,49 @@ async def list_anniversaries_command(ack, body, client):
         # Send the list as a direct message to the user
         await client.chat_postMessage(channel=user_id, text="\n".join(message))
 
+# --- MODIFIED COMMAND: Sends test to the admin user who ran it ---
 @slack_app.command("/test-birthday-ai")
 async def test_birthday_ai_command(ack, body, client):
-    await ack(); user_id = body['user_id']
-    if not await is_user_admin(client, user_id): await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Sorry, You don't have the right permmision to do this action."); return
-    settings = db_read_one("SELECT * FROM settings_birthday WHERE id = 1");
-    if not settings: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Run `/setup-birthdays` first."); return
-    _, channel, _ = settings
-    await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text=f"Generating test AI birthday message... Posting in `#{await get_channel_name(client, channel)}`.")
-    try: message = await generate_birthday_message(user_id); await client.chat_postMessage(channel=channel, text=message)
-    except Exception as e: logger.error(f"Error in /test-birthday-ai: {e}"); await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text=f"Error: {e}")
+    await ack()
+    user_id = body['user_id']
+    if not await is_user_admin(client, user_id):
+        await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Sorry, you don't have permission to do this.")
+        return
+    await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Generating a test AI birthday message for you...")
+    try:
+        message = await generate_birthday_message(user_id)
+        # Send the generated message as a DM to the admin who initiated the test.
+        await client.chat_postMessage(channel=user_id, text=f"*Here is your generated test birthday message:*\n\n{message}")
+    except Exception as e:
+        logger.error(f"Error in /test-birthday-ai: {e}")
+        await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text=f"An error occurred: {e}")
 
+
+# --- MODIFIED COMMAND: Sends test to the admin user who ran it ---
 @slack_app.command("/test-anniversary-ai")
 async def test_anniversary_ai_command(ack, body, client):
-    await ack(); user_id = body['user_id']
-    if not await is_user_admin(client, user_id): await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Sorry, You don't have the right permmision to do this action."); return
-    settings = db_read_one("SELECT * FROM settings_anniversary WHERE id = 1");
-    if not settings: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Run `/setup-anniversary` first."); return
+    await ack()
+    user_id = body['user_id']
+    if not await is_user_admin(client, user_id):
+        await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Sorry, you don't have permission to do this.")
+        return
     anniv_data = db_read_one("SELECT anniversary_date FROM anniversaries WHERE user_id = ?", (user_id,))
-    if not anniv_data: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Cannot run test: Your anniversary date is not in the database."); return
-    _, channel, _ = settings
-    await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text=f"Simulating your real anniversary... Posting in `#{await get_channel_name(client, channel)}`.")
+    if not anniv_data:
+        await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Cannot run test: Your anniversary date is not in the database. An admin can set it with `/set-anniversary`.")
+        return
+    await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Generating a test AI anniversary message based on your saved start date...")
     try:
-        anniv_date = datetime.strptime(anniv_data[0], "%Y-%m-%d").date(); years = relativedelta(date.today(), anniv_date).years
-        if years == 0: await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Cannot run test: Your start date is less than a year ago."); return
-        message = await generate_anniversary_message(user_id, years); await client.chat_postMessage(channel=channel, text=message)
-    except Exception as e: logger.error(f"Error in /test-anniversary-ai: {e}"); await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text=f"An error occurred: {e}")
+        anniv_date = datetime.strptime(anniv_data[0], "%Y-%m-%d").date()
+        years = relativedelta(date.today(), anniv_date).years
+        if years == 0:
+            await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text="Cannot run test: Your start date is less than a year ago.")
+            return
+        message = await generate_anniversary_message(user_id, years)
+        # Send the generated message as a DM to the admin who initiated the test.
+        await client.chat_postMessage(channel=user_id, text=f"*Here is your generated test anniversary message for {years} years:*\n\n{message}")
+    except Exception as e:
+        logger.error(f"Error in /test-anniversary-ai: {e}")
+        await client.chat_postEphemeral(user=user_id, channel=body['channel_id'], text=f"An error occurred: {e}")
 
 @slack_app.command("/test-game")
 async def test_game_command(ack, body, client):
@@ -784,6 +854,187 @@ async def handle_test_game_selection(ack, body, client):
         logger.error(f"Failed to start test game '{game_name}' for {user_id}: {e}")
         await client.chat_postEphemeral(user=user_id, channel=user_id, text="Sorry, an error occurred while trying to start that game.")
 
+# --- NEW: Actions from Admin Home Tab Buttons ---
+
+@slack_app.action("admin_home_setup_birthdays")
+async def handle_admin_home_setup_birthdays(ack, body, client):
+    await ack()
+    # This logic is identical to the /setup-birthdays command
+    try:
+        current_settings = db_read_one("SELECT * FROM settings_birthday WHERE id = 1")
+        view = build_settings_modal("birthday_settings_submitted", "Birthday Settings", current_settings)
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_setup_birthdays action: {e}")
+
+@slack_app.action("admin_home_setup_anniversaries")
+async def handle_admin_home_setup_anniversaries(ack, body, client):
+    await ack()
+    # This logic is identical to the /setup-anniversary command
+    try:
+        current_settings = db_read_one("SELECT * FROM settings_anniversary WHERE id = 1")
+        view = build_settings_modal("anniversary_settings_submitted", "Anniversary Settings", current_settings)
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_setup_anniversaries action: {e}")
+
+@slack_app.action("admin_home_setup_games")
+async def handle_admin_home_setup_games(ack, body, client):
+    await ack()
+    # This logic is identical to the /set-game command
+    try:
+        current_setting = db_read_one("SELECT enabled FROM settings_game WHERE id = 1")
+        current_status = current_setting[0] if current_setting else 0
+        view = build_game_settings_modal(current_status)
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_setup_games action: {e}")
+
+@slack_app.action("admin_home_set_birthday")
+async def handle_admin_home_set_birthday(ack, body, client):
+    await ack()
+    # This logic is identical to the /set-birthday command
+    try:
+        view = build_admin_set_birthday_modal()
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_set_birthday action: {e}")
+
+@slack_app.action("admin_home_set_anniversary")
+async def handle_admin_home_set_anniversary(ack, body, client):
+    await ack()
+    # This logic is identical to the /set-anniversary command
+    try:
+        view = build_admin_set_anniversary_modal()
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_set_anniversary action: {e}")
+
+@slack_app.action("admin_home_delete_data")
+async def handle_admin_home_delete_data(ack, body, client):
+    await ack()
+    # This logic is identical to the /delete command
+    try:
+        view = build_delete_type_modal()
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_delete_data action: {e}")
+
+@slack_app.action("admin_home_list_birthdays")
+async def handle_admin_home_list_birthdays(ack, body, client):
+    await ack()
+    user_id = body['user']['id']
+    # This logic is identical to the /list-birthdays command
+    all_birthdays = db_read_all("SELECT user_id, birthday_date FROM birthdays")
+    if not all_birthdays:
+        await client.chat_postMessage(channel=user_id, text="No birthdays saved.")
+        return
+    today_tuple = (date.today().month, date.today().day)
+    sorted_birthdays = sorted(all_birthdays, key=lambda b: (int(b[1][:2]), int(b[1][3:])) if (int(b[1][:2]), int(b[1][3:])) >= today_tuple else (int(b[1][:2]) + 12, int(b[1][3:])))
+    message = ["*Upcoming Birthdays:*"]
+    for bday_user_id, bday_str in sorted_birthdays:
+        message.append(f"• <@{bday_user_id}> - {datetime.strptime(bday_str, '%m-%d').strftime('%B %d')}")
+    await client.chat_postMessage(channel=user_id, text="\n".join(message))
+
+
+@slack_app.action("admin_home_list_anniversaries")
+async def handle_admin_home_list_anniversaries(ack, body, client):
+    await ack()
+    user_id = body['user']['id']
+    # This logic is identical to the /list-anniversaries command
+    all_anniversaries = db_read_all("SELECT user_id, anniversary_date FROM anniversaries")
+    if not all_anniversaries:
+        await client.chat_postMessage(channel=user_id, text="No anniversaries saved.")
+        return
+    today = date.today(); today_tuple = (today.month, today.day)
+    sorted_anniversaries = sorted(all_anniversaries, key=lambda a: (int(a[1][5:7]), int(a[1][8:10])) if (int(a[1][5:7]), int(a[1][8:10])) >= today_tuple else (int(a[1][5:7]) + 12, int(a[1][8:10])))
+    message = ["*Upcoming Anniversaries:*"]
+    for anniv_user_id, anniv_str in sorted_anniversaries:
+        anniv_obj = datetime.strptime(anniv_str, "%Y-%m-%d").date(); years = relativedelta(today, anniv_obj).years
+        if years >= 1: message.append(f"• <@{anniv_user_id}> - {anniv_obj.strftime('%B %d %Y')} ({years}-year anniversary)")
+    if len(message) == 1:
+        await client.chat_postMessage(channel=user_id, text="No upcoming anniversaries for anyone who has been here at least a year.")
+    else:
+        await client.chat_postMessage(channel=user_id, text="\n".join(message))
+
+@slack_app.action("admin_home_test_game")
+async def handle_admin_home_test_game(ack, body, client):
+    await ack()
+    user_id = body['user']['id']
+    # This logic is identical to the /test-game command
+    game_setting = db_read_one("SELECT enabled FROM settings_game WHERE id = 1")
+    game_enabled = game_setting[0] if game_setting else 0
+    if not game_enabled:
+        await client.chat_postMessage(channel=user_id, text="The birthday games are currently disabled. Please enable them first.")
+        return
+    try:
+        view = build_test_game_modal()
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_test_game action: {e}")
+        await client.chat_postMessage(channel=user_id, text=f"An error occurred: {e}")
+
+@slack_app.action("admin_home_test_bday_ai")
+async def handle_admin_home_test_bday_ai(ack, body, client):
+    await ack()
+    user_id = body['user']['id']
+    # This logic is identical to the modified /test-birthday-ai command
+    await client.chat_postMessage(channel=user_id, text="Generating a test AI birthday message for you...")
+    try:
+        message = await generate_birthday_message(user_id)
+        await client.chat_postMessage(channel=user_id, text=f"*Here is your generated test birthday message:*\n\n{message}")
+    except Exception as e:
+        logger.error(f"Error in admin_home_test_bday_ai action: {e}")
+        await client.chat_postMessage(channel=user_id, text=f"An error occurred: {e}")
+
+@slack_app.action("admin_home_test_anniv_ai")
+async def handle_admin_home_test_anniv_ai(ack, body, client):
+    await ack()
+    user_id = body['user']['id']
+    # This logic is identical to the modified /test-anniversary-ai command
+    anniv_data = db_read_one("SELECT anniversary_date FROM anniversaries WHERE user_id = ?", (user_id,))
+    if not anniv_data:
+        await client.chat_postMessage(channel=user_id, text="Cannot run test: Your anniversary date is not in the database. Please set it first.")
+        return
+    await client.chat_postMessage(channel=user_id, text="Generating a test AI anniversary message based on your saved start date...")
+    try:
+        anniv_date = datetime.strptime(anniv_data[0], "%Y-%m-%d").date()
+        years = relativedelta(date.today(), anniv_date).years
+        if years == 0:
+            await client.chat_postMessage(channel=user_id, text="Cannot run test: Your start date is less than a year ago.")
+            return
+        message = await generate_anniversary_message(user_id, years)
+        await client.chat_postMessage(channel=user_id, text=f"*Here is your generated test anniversary message for {years} years:*\n\n{message}")
+    except Exception as e:
+        logger.error(f"Error in admin_home_test_anniv_ai action: {e}")
+        await client.chat_postMessage(channel=user_id, text=f"An error occurred: {e}")
+
+@slack_app.action("admin_home_reset_bot")
+async def handle_admin_home_reset_bot(ack, body, client):
+    await ack()
+    # This logic is identical to the /reset-celebration-bot command
+    try:
+        view = build_reset_modal()
+        await client.views_open(trigger_id=body["trigger_id"], view=view)
+    except Exception as e:
+        logger.error(f"Error in admin_home_reset_bot action: {e}")
+
+
+# --- NEW: Event handler for the App Home tab ---
+@slack_app.event("app_home_opened")
+async def update_home_tab(client, event, logger):
+    user_id = event["user"]
+    try:
+        # Display the admin panel for admins, and a welcome message for others.
+        if await is_user_admin(client, user_id):
+            view_payload = build_admin_home_view()
+        else:
+            view_payload = build_user_home_view()
+        
+        await client.views_publish(user_id=user_id, view=view_payload)
+    except Exception as e:
+        logger.error(f"Error publishing home tab for {user_id}: {e}")
+
 # --- CORRECTED EVENT HANDLER ---
 @slack_app.event("team_join")
 async def handle_team_join(event, client):
@@ -794,7 +1045,7 @@ async def handle_team_join(event, client):
         await client.chat_postMessage(channel=new_user_id, text=f"<@{new_user_id}>, Welcome to the team! I'm the Birthday Bot. To make sure we can celebrate you, please reply to me with your birthday in `{format_str}` format ({example_str}).")
 
         # Notify admins more efficiently
-        admin_reminder_message = f":wave: A new user, <@{new_user_id}>, has joined! Please remember to set their work anniversary using the `/set-anniversary` command."
+        admin_reminder_message = f":wave: A new user, <@{new_user_id}>, has joined! Please remember to set their work anniversary using the `/set-anniversary` command or the Admin Control Panel in my App Home."
         all_users_response = await client.users_list()
         for user in all_users_response['members']:
             # Check admin/owner status directly from the users.list response
